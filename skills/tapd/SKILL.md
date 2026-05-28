@@ -7,7 +7,7 @@ metadata:
     "openclaw":
       {
         "emoji": "📋",
-        "requires": { "bins": [], "env": ["TAPD_ACCESS_TOKEN"] },
+        "requires": { "bins": [], "env": [] },
         "primaryEnv": "TAPD_ACCESS_TOKEN",
         "install": [],
       },
@@ -39,21 +39,45 @@ metadata:
 
 ## 环境与认证
 
+配置优先从 `config.json` 读取，其次回退到环境变量。
+
+### 方式一：配置文件（推荐）
+
+编辑 `skills/tapd/config.json`：
+
+```json
+{
+  "project": {
+    "workspace_id": "你的项目ID"
+  },
+  "tapd_token": "你的个人访问令牌",
+  "bot_url": "企业微信机器人webhook（可选）"
+}
+```
+
+| 字段 | 必填 | 说明 |
+|------|------|------|
+| `tapd_token` | 二选一 | 个人访问令牌，推荐 |
+| `workspace_id` | 是 | TAPD 项目 ID |
+| `bot_url` | 可选 | 企业微信机器人 webhook |
+
+### 方式二：环境变量（备用）
+
 | 变量名 | 必填 | 说明 |
 |--------|------|------|
-| TAPD_ACCESS_TOKEN | 二选一 | 个人访问令牌，推荐 |
-| TAPD_API_USER | 二选一 | API 账号（与 TAPD_API_PASSWORD 搭配） |
-| TAPD_API_PASSWORD | 二选一 | API 密码 |
-| TAPD_API_BASE_URL | 可选 | API 根地址，默认 `https://api.tapd.cn` |
-| TAPD_BASE_URL | 可选 | 前端地址，用于生成需求/任务/缺陷等链接，默认 `https://www.tapd.cn` |
-| BOT_URL | 可选 | 企业微信机器人 webhook，仅发送群消息时需要 |
-| CURRENT_USER_NICK | 可选 | 当前用户昵称，未传 nick 时用于参与项目、待办、工时等查询 |
+| `TAPD_ACCESS_TOKEN` | 二选一 | 个人访问令牌 |
+| `TAPD_API_USER` | 二选一 | API 账号（与 `TAPD_API_PASSWORD` 搭配） |
+| `TAPD_API_PASSWORD` | 二选一 | API 密码 |
+| `TAPD_API_BASE_URL` | 可选 | API 根地址，默认 `https://api.tapd.cn` |
+| `TAPD_BASE_URL` | 可选 | 前端地址，默认 `https://www.tapd.cn` |
+| `BOT_URL` | 可选 | 企业微信机器人 webhook |
+| `CURRENT_USER_NICK` | 可选 | 当前用户昵称 |
 
 ### 请求规范
 
 - **URL**：所有请求在 base 后追加 `?s=mcp`（若 URL 已有 query 则用 `&s=mcp`）。例如：`GET {TAPD_API_BASE_URL}/stories?s=mcp`。
 - **Headers**：
-  - 认证二选一：`Authorization: Bearer <TAPD_ACCESS_TOKEN>` 或 `Authorization: Basic <base64(TAPD_API_USER:TAPD_API_PASSWORD)>`
+  - 认证二选一：`Authorization: Bearer <TAPD_ACCESS_TOKEN>`（从配置文件 `tapd_token` 或环境变量读取）或 `Authorization: Basic <base64(TAPD_API_USER:TAPD_API_PASSWORD)>`
   - `Content-Type: application/json`
   - `Via: mcp`
 - **Body**：POST 请求使用 JSON；GET 参数放在 query string。
@@ -136,7 +160,7 @@ TAPD 部分接口接受短 ID（≤9 位数字）。调用前需转为长 ID：
 
 ## 命令行调用方式（推荐 AI 使用）
 
-在配置好环境变量（TAPD_ACCESS_TOKEN 或 TAPD_API_USER/TAPD_API_PASSWORD；TAPD_API_BASE_URL 可选，默认云环境）后，使用 **python3** 运行脚本（脚本仅用标准库）。输出为 JSON 到 stdout，便于解析。
+在配置好 `config.json` 或环境变量（`TAPD_ACCESS_TOKEN` 或 `TAPD_API_USER`/`TAPD_API_PASSWORD`；`TAPD_API_BASE_URL` 可选，默认云环境）后，使用 **python3** 运行脚本（脚本仅从标准库）。脚本优先读取 `config.json`，其次回退到环境变量。输出为 JSON 到 stdout，便于解析。
 
 ```bash
 # 获取用户参与的项目（nick 默认取环境变量 CURRENT_USER_NICK）
@@ -174,14 +198,15 @@ python3 {baseDir}/scripts/tapd_client_stdlib.py post --endpoint "comments" -p wo
 - **BOT_URL / TAPD_API_BASE_URL**：使用前请确认 `BOT_URL`（企业微信 webhook）和自定义的 `TAPD_API_BASE_URL` 均指向**可信端点**（如 TAPD 官方 `https://api.tapd.cn` 或贵司自建 TAPD、企业微信官方 webhook 地址），避免指向不可信第三方。
 - **可选加固**：若需更强安全，可在沙盒环境中运行本脚本，并限制网络仅允许访问 TAPD API 与 BOT_URL（例如通过防火墙或容器网络策略），以确认脚本仅与预期端点通信。
 
-### API key / 环境变量
+### API key / 配置
 
-- `TAPD_ACCESS_TOKEN` 环境变量（推荐）；或使用 `TAPD_API_USER` + `TAPD_API_PASSWORD`。
+- **推荐**：在 `config.json` 中配置 `tapd_token`。
+- **备用**：`TAPD_ACCESS_TOKEN` 环境变量；或使用 `TAPD_API_USER` + `TAPD_API_PASSWORD`。
 - OpenClaw 中可设置 `skills.tapd.env.TAPD_ACCESS_TOKEN` 于 `~/.openclaw/openclaw.json`。
 
 ## 使用脚本（可选）
 
-本 Skill 提供仅使用 Python 标准库的客户端脚本 [scripts/tapd_client_stdlib.py](./scripts/tapd_client_stdlib.py)，使用 **python3 {baseDir}/scripts/tapd_client_stdlib.py** 运行。可从环境变量读取配置并封装通用 request 及部分高频接口；支持上述**命令行调用**与 Python 内 import 两种方式。
+本 Skill 提供仅使用 Python 标准库的客户端脚本 [scripts/tapd_client_stdlib.py](./scripts/tapd_client_stdlib.py)，使用 **python3 {baseDir}/scripts/tapd_client_stdlib.py** 运行。优先从 `config.json` 读取配置，其次回退到环境变量。封装通用 request 及部分高频接口；支持上述**命令行调用**与 Python 内 import 两种方式。
 
 ## 注意事项
 
